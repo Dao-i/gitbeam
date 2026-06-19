@@ -27,10 +27,10 @@ function createWindow() {
     y: 60,
     frame: false,
     transparent: true,
-    alwaysOnTop: true,
-    skipTaskbar: true,
+    alwaysOnTop: false,
+    skipTaskbar: false,
     resizable: false,
-    hasShadow: false,
+    hasShadow: true,
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -38,8 +38,6 @@ function createWindow() {
     },
   });
 
-  win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  win.setAlwaysOnTop(true, "floating");
   win.loadFile("renderer.html");
 
   try {
@@ -52,7 +50,7 @@ function createWindow() {
         { label: "展开/折叠", click: () => toggleMini() },
         { label: "下一张", click: () => win.webContents.send("next-card") },
         { type: "separator" },
-        { label: "退出", click: () => app.quit() },
+        { label: "退出", click: () => { app.isQuitting = true; app.quit(); } },
       ])
     );
   } catch (e) {
@@ -60,12 +58,20 @@ function createWindow() {
   }
 
   win.on("close", (e) => {
-    e.preventDefault();
-    win.hide();
+    if (!app.isQuitting) {
+      e.preventDefault();
+      win.hide();
+    }
   });
 
-  ipcMain.on("minimize-window", () => { win.minimize(); });
-  ipcMain.on("toggle-mini", () => { toggleMini(); });
+  ipcMain.on("minimize-window", () => { win.hide(); });
+  ipcMain.on("toggle-mini", () => toggleMini());
+
+  // Tray double-click to restore
+  tray.on("double-click", () => {
+    win.show();
+    win.focus();
+  });
 }
 
 function toggleMini() {
