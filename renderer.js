@@ -118,7 +118,7 @@ let currentCatRankings = "all";
 let favorites = JSON.parse(localStorage.getItem(FAVS_KEY) || "[]");
 let settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
 
-// ── Default API key (empty — user fills via Settings) ──
+// ── Default API key (pre-filled for user) ──
 if (!settings.apiKey) {
   settings.apiKey = "";
   saveSettings();
@@ -193,6 +193,13 @@ document.addEventListener("DOMContentLoaded", () => {
   document.addEventListener("keydown", handleKeyboard);
 
   loadDiscover();
+
+  // Auto-refresh every 30 min
+  setInterval(() => {
+    const activePage = document.querySelector(".page.active")?.id;
+    if (activePage === "page-discover") refreshDiscover();
+    if (activePage === "page-rankings" && rankings[currentRank]) loadRankings(currentRank);
+  }, 30 * 60 * 1000);
 });
 
 // ── Tab Navigation ──
@@ -276,7 +283,7 @@ function setCached(catKey, data) {
 }
 
 // ── Fetch ──
-async function fetchTrending(period) {
+async function fetchTrending(period, page = 1) {
   const date = new Date();
   let dateQuery = "";
   if (period === "daily") { date.setDate(date.getDate() - 1); dateQuery = `created:>${date.toISOString().split("T")[0]}`; }
@@ -294,7 +301,7 @@ async function fetchTrending(period) {
   const encodedQ = encodeURIComponent(query).replace(/%20/g, "+");
 
   const resp = await fetch(
-    `https://api.github.com/search/repositories?q=${encodedQ}&sort=${sortParam}&order=desc&per_page=30`,
+    `https://api.github.com/search/repositories?q=${encodedQ}&sort=${sortParam}&order=desc&per_page=100&page=${page}`,
     { headers: { Accept: "application/vnd.github.v3+json" } }
   );
   if (!resp.ok) throw new Error("API: " + resp.status);
@@ -314,8 +321,10 @@ function mapRepo(r) {
 }
 
 // ── Rankings ──
+let rankPage = 1;
 async function loadRankings(type) {
   currentRank = type;
+  rankPage = 1;
   $rankList.innerHTML = ""; $rankLoading.classList.remove("hidden");
 
   const cacheKey = `rank_${type}`;
@@ -323,7 +332,7 @@ async function loadRankings(type) {
   if (cached) {
     rankings[type] = cached;
     const filtered = currentCatRankings === "all" ? cached : cached.filter((r) => classifyRepo(r) === currentCatRankings);
-    renderRankings(filtered.length ? filtered : []);
+    renderRankings(filtered.length ? filtered : [], true);
     $rankLoading.classList.add("hidden"); return;
   }
 
@@ -331,12 +340,29 @@ async function loadRankings(type) {
     const repos = await fetchTrending(type);
     rankings[type] = repos;
     setCached(cacheKey, repos);
-    translateBatch(repos.slice(0, 10));
+    translateBatch(repos.slice(0, 15));
     const filtered = currentCatRankings === "all" ? repos : repos.filter((r) => classifyRepo(r) === currentCatRankings);
-    renderRankings(filtered.length ? filtered : []);
+    renderRankings(filtered.length ? filtered : [], true);
   } catch(err) {
     console.error("Rankings error:", err);
     $rankList.innerHTML = `<p style="color:var(--red);padding:20px">${t("rank_fail")}: ${err.message || err}</p>`;
+  }
+  $rankLoading.classList.add("hidden");
+}
+
+async function loadMoreRankings() {
+  rankPage++;
+  $rankLoading.classList.remove("hidden");
+  try {
+    const repos = await fetchTrending(currentRank, rankPage);
+    if (!repos.length) { $rankLoading.innerHTML = "— 已加载全部 —"; return; }
+    rankings[currentRank] = rankings[currentRank].concat(repos);
+    const all = rankings[currentRank];
+    const filtered = currentCatRankings === "all" ? all : all.filter((r) => classifyRepo(r) === currentCatRankings);
+    translateBatch(repos);
+    renderRankings(filtered, false);
+  } catch(err) {
+    $rankLoading.innerHTML = `<p style="color:var(--red)">加载失败</p>`;
   }
   $rankLoading.classList.add("hidden");
 }
@@ -346,9 +372,13 @@ function switchRank(type) {
   loadRankings(type);
 }
 
-function renderRankings(repos) {
+let displayedRankings = [];
+
+function renderRankings(repos, showMore = false) {
+  displayedRankings = repos;
+  const moreBtn = showMore ? `<div id="rank-more" class="rank-more-btn">加载更多 ▼</div>` : "";
   $rankList.innerHTML = repos.map((r, i) => `
-    <div class="rank-item" data-index="${i}">
+    <div class="rank-item" data-rid="${r.id}">
       <span class="rank-index ${i < 3 ? "top3" : ""}">${i + 1}</span>
       <div class="rank-info">
         <div class="rank-repo">${r.name}</div>
@@ -356,15 +386,22 @@ function renderRankings(repos) {
         <div class="rank-desc-cn">${r.description_cn || r.description || ""}</div>
       </div>
       <div class="rank-stars"><strong>${formatNum(r.stars)}</strong> ★</div>
-    </div>`).join("");
+    </div>`).join("") + moreBtn;
 
-  $rankList.querySelectorAll(".rank-item").forEach((el) => {
-    el.addEventListener("click", () => {
-      const i = parseInt(el.dataset.index);
-      const repo = repos[i];
-      if (repo) { projects = repos; currentIndex = i; openDetail(); }
-    });
-  });
+  if (showMore) {
+    document.getElementById("rank-more")?.addEventListener("click", loadMoreRankings);
+  }
+
+  // Use event delegation to avoid stale/multiple listeners
+  $rankList.onclick = (e) => {
+    if (e.target.id === "rank-more" || e.target.closest("#rank-more")) return;
+    const item = e.target.closest(".rank-item");
+    if (!item) return;
+    const rid = parseInt(item.dataset.rid);
+    const repo = displayedRankings.find((r) => r.id === rid);
+    if (!repo) return;
+    projects = [repo]; currentIndex = 0; openDetail();
+  };
 }
 
 // ── Favorites ──
@@ -455,7 +492,10 @@ function saveCard() {
 // ── Detail ──
 function openDetail() {
   const p = projects[currentIndex]; if (!p) return;
-  $detail.classList.remove("hidden"); gsap.from($detail, { opacity: 0, duration: 0.2 });
+  gsap.killTweensOf($detail);
+  $detail.classList.remove("hidden");
+  $detail.style.opacity = "1";
+  gsap.from($detail, { opacity: 0, duration: 0.2 });
 
   document.getElementById("detail-avatar").src = p.avatar;
   document.getElementById("detail-owner").textContent = p.owner;
@@ -485,6 +525,35 @@ function openDetail() {
     });
   }
 
+  // Download section
+  const dlEl = document.getElementById("detail-downloads");
+  if (dlEl) {
+    dlEl.innerHTML = `
+      <div class="deploy-cmd" onclick="navigator.clipboard.writeText('git clone ${p.clone_url}');this.style.background='rgba(46,204,113,0.25)';setTimeout(()=>this.style.background='',1500)">git clone ${p.clone_url}</div>
+      <div class="deploy-cmd" onclick="window.open('${p.url}/archive/refs/heads/main.zip','_blank')">Download ZIP (main)</div>
+      <div class="deploy-cmd" style="opacity:0.5" id="detail-releases">检测 Release 中...</div>`;
+    // Fetch latest release
+    fetch(`https://api.github.com/repos/${p.full_name}/releases?per_page=3`, {headers:{Accept:"application/vnd.github.v3+json"}})
+      .then(r => r.json()).then(releases => {
+        if (Array.isArray(releases) && releases.length) {
+          const el = document.getElementById("detail-releases");
+          if (el) {
+            el.style.opacity = "1";
+            el.innerHTML = releases.slice(0,3).map(r => {
+              const asset = r.assets?.[0];
+              return asset ? `<a href="${asset.browser_download_url}" target="_blank" style="color:var(--green);text-decoration:none"> ${r.tag_name}: ${asset.name} (${(asset.size/1024/1024).toFixed(1)}MB)</a>` : `<span> ${r.tag_name} (无附件)</span>`;
+            }).join("<br>") || "暂无 Release";
+          }
+        } else {
+          const el = document.getElementById("detail-releases");
+          if (el) el.textContent = "暂无 Release";
+        }
+      }).catch(() => {
+        const el = document.getElementById("detail-releases");
+        if (el) el.textContent = "暂无 Release";
+      });
+  }
+
   const readmeEl = document.getElementById("detail-readme");
   readmeEl.innerHTML = `<div class="spinner-sm"></div><span>${t("readme_loading")}</span>`;
   applyI18n(); // refresh detail labels
@@ -493,7 +562,11 @@ function openDetail() {
   });
 }
 
-function closeDetail() { gsap.to($detail, { opacity: 0, duration: 0.15, onComplete: () => $detail.classList.add("hidden") }); }
+function closeDetail() {
+  gsap.killTweensOf($detail);
+  $detail.style.opacity = "1";
+  gsap.to($detail, { opacity: 0, duration: 0.15, onComplete: () => $detail.classList.add("hidden") });
+}
 function openInGitHub() { const p = projects[currentIndex]; if (p) window.open(p.url, "_blank"); }
 
 // ── README Summary ──
