@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GitBeam</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- Mini Bar (collapsed) -->
+    <div id="mini-bar" class="hidden">
+      <span class="mini-logo"> GitBeam</span>
+      <span id="mini-badge" class="mini-badge"></span>
+      <button id="mini-expand" class="icon-btn mini-btn" title="展开">+</button>
+      <button id="mini-next" class="icon-btn mini-btn" title="下一张">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+
+    <!-- Main content wrapper -->
+    <div id="main-content">
+    <!-- Header -->
+    <div id="header">
+      <span class="logo"> GitBeam</span>
+      <nav id="tabs">
+        <button class="tab active" data-page="discover" data-i18n="tab_discover">发现</button>
+        <button class="tab" data-page="rankings" data-i18n="tab_rankings">排行榜</button>
+        <button class="tab" data-page="favorites" data-i18n="tab_favorites">收藏</button>
+        <button class="tab" data-page="settings" data-i18n="tab_settings">设置</button>
+      </nav>
+      <button id="mini-toggle" class="icon-btn" title="折叠/展开">-</button>
+      <button id="min-btn" class="icon-btn" title="最小化">_</button>
+      <button id="close-btn" class="icon-btn" title="最小化到托盘">×</button>
+    </div>
+
+    <!-- ═══ DISCOVER PAGE ═══ -->
+    <div id="page-discover" class="page active">
+      <nav id="cat-tabs-discover" class="cat-tabs">
+        <button class="cat-tab active" data-cat="all" data-i18n="cat_all">全部</button>
+        <button class="cat-tab" data-cat="ai" data-i18n="cat_ai">AI·Skill</button>
+        <button class="cat-tab" data-cat="tool" data-i18n="cat_tool">软件工具</button>
+        <button class="cat-tab" data-cat="lib" data-i18n="cat_lib">框架库</button>
+        <button class="cat-tab" data-cat="docs" data-i18n="cat_docs">知识文档</button>
+        <button class="cat-tab" data-cat="devops" data-i18n="cat_devops">开发运维</button>
+      </nav>
+      <div id="card-stack">
+        <div id="card" class="card">
+          <div class="card-header">
+            <div class="card-owner"></div>
+            <div class="card-stats">
+              <span class="stat stars"></span>
+              <span class="stat forks"></span>
+            </div>
+          </div>
+          <h2 class="card-name"></h2>
+          <p class="card-desc"></p>
+          <p class="card-desc-cn"></p>
+          <div class="card-tags"></div>
+          <div class="card-deploy"></div>
+          <div class="card-actions">
+            <button class="action-btn skip" title="跳过"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <button class="action-btn open" title="详情"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg></button>
+            <button class="action-btn save" title="收藏"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"/></svg></button>
+          </div>
+        </div>
+      </div>
+      <div id="loading"><div class="spinner"></div><p data-i18n="loading">正在抓取 GitHub 热门项目...</p></div>
+      <div id="empty" class="hidden">
+        <p data-i18n="empty_done">这批看完了 </p>
+        <button id="refresh-discover" class="primary-btn" data-i18n="refresh">换一批</button>
+      </div>
+    </div>
+
+    <!-- ═══ RANKINGS PAGE ═══ -->
+    <div id="page-rankings" class="page">
+      <nav id="cat-tabs-rankings" class="cat-tabs">
+        <button class="cat-tab active" data-cat="all" data-i18n="cat_all">全部</button>
+        <button class="cat-tab" data-cat="ai" data-i18n="cat_ai">AI·Skill</button>
+        <button class="cat-tab" data-cat="tool" data-i18n="cat_tool">软件工具</button>
+        <button class="cat-tab" data-cat="lib" data-i18n="cat_lib">框架库</button>
+        <button class="cat-tab" data-cat="docs" data-i18n="cat_docs">知识文档</button>
+        <button class="cat-tab" data-cat="devops" data-i18n="cat_devops">开发运维</button>
+      </nav>
+      <nav id="rank-tabs">
+        <button class="rank-tab active" data-rank="daily" data-i18n="rank_daily">日榜</button>
+        <button class="rank-tab" data-rank="weekly" data-i18n="rank_weekly">周榜</button>
+        <button class="rank-tab" data-rank="monthly" data-i18n="rank_monthly">月榜</button>
+        <button class="rank-tab" data-rank="stars" data-i18n="rank_stars">总星标</button>
+        <button class="rank-tab" data-rank="rising" data-i18n="rank_rising">上升最快</button>
+      </nav>
+      <div id="rank-list" class="rank-list"></div>
+      <div id="rank-loading" class="loading-inline"><div class="spinner"></div></div>
+    </div>
+
+    <!-- ═══ FAVORITES PAGE ═══ -->
+    <div id="page-favorites" class="page">
+      <div id="fav-list" class="rank-list"></div>
+      <div id="fav-empty" class="empty-state">
+        <p data-i18n="fav_empty">还没有收藏项目</p>
+        <p class="hint" data-i18n="fav_hint">在"发现"中右滑或点  收藏</p>
+      </div>
+    </div>
+
+    <!-- ═══ SETTINGS PAGE ═══ -->
+    <div id="page-settings" class="page">
+      <div class="settings-scroll">
+        <div class="setting-group">
+          <div class="setting-label" data-i18n="set_color">主题色</div>
+          <div class="color-presets" id="color-presets">
+            <button class="color-dot active" data-color="7c5cfc" style="background:#7c5cfc"></button>
+            <button class="color-dot" data-color="06b6d4" style="background:#06b6d4"></button>
+            <button class="color-dot" data-color="10b981" style="background:#10b981"></button>
+            <button class="color-dot" data-color="f59e0b" style="background:#f59e0b"></button>
+            <button class="color-dot" data-color="ef4444" style="background:#ef4444"></button>
+            <button class="color-dot" data-color="ec4899" style="background:#ec4899"></button>
+            <button class="color-dot" data-color="f97316" style="background:#f97316"></button>
+            <button class="color-dot" data-color="8b5cf6" style="background:#8b5cf6"></button>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label" data-i18n="set_mode">主题模式</div>
+          <div class="toggle-row">
+            <button class="mode-btn active" data-mode="dark" data-i18n="mode_dark">深色</button>
+            <button class="mode-btn" data-mode="light" data-i18n="mode_light">浅色</button>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label" data-i18n="set_size">窗口大小</div>
+          <div class="toggle-row">
+            <button class="size-btn active" data-size="normal" data-i18n="size_normal">标准</button>
+            <button class="size-btn" data-size="compact" data-i18n="size_compact">紧凑</button>
+          </div>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label" data-i18n="set_lang">翻译目标语言</div>
+          <select id="lang-select" class="lang-select">
+            <option value="zh-CN">中文 (简体)</option>
+            <option value="zh-TW">中文 (繁体)</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+            <option value="ko">한국어</option>
+            <option value="fr">Français</option>
+            <option value="de">Deutsch</option>
+            <option value="es">Español</option>
+            <option value="pt">Português</option>
+            <option value="ru">Русский</option>
+            <option value="ar">العربية</option>
+            <option value="hi">हिन्दी</option>
+          </select>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label" data-i18n="set_apikey">AI 摘要 API Key (DeepSeek)</div>
+          <div class="api-key-row">
+            <input id="apikey-input" class="apikey-input" type="password" data-i18n-placeholder="apikey_placeholder" placeholder="sk-... 留空则使用 Google 翻译做摘要">
+            <button id="apikey-toggle" class="icon-btn" title="显示/隐藏">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <p class="setting-hint" data-i18n="apikey_hint">API Key 仅存本地，不会上传。用于 README 智能摘要，留空则降级为原文前几句。</p>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label" data-i18n="set_data">数据</div>
+          <button id="clear-cache-btn" class="setting-btn" data-i18n="clear_cache">清除缓存 (下次启动重新抓取)</button>
+          <button id="clear-favs-btn" class="setting-btn danger" data-i18n="clear_favs">清空收藏夹</button>
+        </div>
+
+        <div class="setting-group">
+          <div class="setting-label" data-i18n="set_about">关于</div>
+          <p class="about-text">GitBeam v2.0 — 像刷小红书一样刷 GitHub<br>数据: GitHub API · 翻译: Google Translate (免费)<br>摘要: DeepSeek (可选) · 开源 MIT</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ DETAIL OVERLAY ═══ -->
+    <div id="detail-overlay" class="hidden">
+      <div id="detail-scroll">
+        <div class="detail-header">
+          <button id="detail-back" class="icon-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+          </button>
+          <span class="detail-section-label" data-i18n="detail_title">项目详情</span>
+          <button id="detail-open-gh" class="icon-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/></svg>
+          </button>
+        </div>
+        <div class="detail-owner-row">
+          <img id="detail-avatar" class="detail-avatar" src="" alt="">
+          <span id="detail-owner"></span>
+        </div>
+        <h2 id="detail-name"></h2>
+        <div class="detail-stats-row">
+          <span class="detail-stat" id="detail-stars"></span>
+          <span class="detail-stat" id="detail-forks"></span>
+          <span class="detail-stat" id="detail-lang"></span>
+        </div>
+        <div id="detail-topics" class="card-tags"></div>
+        <div class="detail-section"><div class="detail-section-label" data-i18n="detail_desc_cn">中文概述</div><p id="detail-desc-cn" class="detail-desc-cn"></p></div>
+        <div class="detail-section"><div class="detail-section-label" data-i18n="detail_desc_en">原文描述</div><p id="detail-desc-en" class="detail-desc-en"></p></div>
+        <div class="detail-section"><div class="detail-section-label" data-i18n="detail_readme">README 摘要</div><div id="detail-readme" class="detail-readme"><div class="spinner-sm"></div><span>加载中...</span></div></div>
+        <div class="detail-section"><div class="detail-section-label" data-i18n="detail_deploy">部署 / 安装</div><div id="detail-deploy" class="detail-deploy-list"></div></div>
+        <div class="detail-section"><button id="detail-open-bottom" class="primary-btn full-width" data-i18n="detail_open_gh">在 GitHub 打开</button></div>
+      </div>
+    </div>
+  </div>
+
+    </div><!-- /main-content -->
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

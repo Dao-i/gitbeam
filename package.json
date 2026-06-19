@@ -1,0 +1,16 @@
+{
+  "name": "gitbeam",
+  "version": "2.0.0",
+  "description": "像刷小红书一样刷 GitHub 有趣项目 | Browse GitHub trending projects like TikTok",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder --win portable"
+  },
+  "author": "GitBeam",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^26.0.0"
+  }
+}
